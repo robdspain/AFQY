@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AFQ-Y Electronic Questionnaire</title>
+  <style>
+    body {font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; line-height: 1.4;}
+    h1 {text-align: center; margin-bottom: 5px;}
+    section {margin-bottom: 24px;}
+    label {font-weight: 600; display:inline-block; margin-bottom:6px;}
+    input[type=text] {padding:6px; width:100%; max-width:300px;}
+    table {width: 100%; border-collapse: collapse;}
+    th, td {padding: 8px 6px; text-align: center;}
+    th {background: #003366; color: #fff; font-weight: 600;}
+    tr:nth-child(even) {background: #f2f6fa;}
+    tr:nth-child(odd) {background: #ffffff;}
+    .item-text {text-align: left;}
+    button {margin-top: 18px; padding: 10px 20px; font-size: 1rem; cursor: pointer;}
+    #result {margin-top: 16px; font-weight: bold;}
+    #interpretation h2 {margin-top: 0;}
+  </style>
+</head>
+<body>
+  <h1>Avoidance & Fusion Questionnaire – Youth (AFQ-Y)</h1>
+
+  <!-- SECTION 0 – Student Info -->
+  <section id="student-info">
+    <label for="studentName">Student Name:</label><br>
+    <input type="text" id="studentName" placeholder="Enter student name" />
+  </section>
+
+  <!-- SECTION 1 – Instructions -->
+  <section id="instructions">
+    <p><strong>We want to know more about what you think, how you feel, and what you do.</strong><br>
+      Read each sentence. Then, circle (click) a number between 0 and 4 that tells how true each sentence is for you.<br>
+      <em>0 = Not at all true &nbsp;&nbsp; 1 = A little true &nbsp;&nbsp; 2 = Pretty true &nbsp;&nbsp; 3 = True &nbsp;&nbsp; 4 = Very true</em>
+    </p>
+  </section>
+
+  <!-- SECTION 2 – Questionnaire -->
+  <section id="questionnaire">
+    <form id="afq-form">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:55%">Statement</th>
+            <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </form>
+    <button type="button" onclick="computeScore()">Calculate Score</button>
+    <div id="result"></div>
+  </section>
+
+  <!-- SECTION 3 – Interpretation Summary -->
+  <section id="interpretation">
+    <h2>AFQ-Y Psychometrics & Report Summary</h2>
+    <p>The AFQ-Y is a 17‑item self‑report measure of <em>psychological inflexibility</em> in youth. Validation studies show a unidimensional factor structure, strong internal consistency (α≈.90) and test–retest reliability (r≈.82). Higher totals indicate greater experiential avoidance and cognitive fusion (range 0–68).</p>
+    <p><strong>FBA usage.</strong> Elevated scores suggest private events (e.g., rigid self‑talk, avoidance of aversive feelings) may functionally relate to observable escape, refusal, or aggression. Incorporating AFQ‑Y results justifies combining Skill‑Based Treatment with ACT strategies that build present‑moment awareness, defusion, and values‑aligned action.</p>
+    <small>Greco, L. A., Lambert, W., & Baer, R. A. (2019). Psychometric properties of the AFQ‑Y. <em>Journal of Contextual Behavioral Science, 12</em>, 55‑63. https://doi.org/10.1016/j.jcbs.2018.12.002</small>
+  </section>
+
+<script>
+  const items = [
+    "My life won't be good until I feel happy.",
+    "My thoughts and feelings mess up my life.",
+    "If I feel sad or afraid, then something must be wrong with me.",
+    "The bad things I think about myself must be true.",
+    "I don't try out new things if I'm afraid of messing up.",
+    "I must get rid of my worries and fears so I can have a good life.",
+    "I do all I can to make sure I don't look dumb in front of other people.",
+    "I try hard to erase hurtful memories from my mind.",
+    "I can't stand to feel pain or hurt in my body.",
+    "If my heart beats fast, there must be something wrong with me.",
+    "I push away thoughts and feelings that I don't like.",
+    "I stop doing things that are important to me whenever I feel bad.",
+    "I do worse in school when I have thoughts that make me feel sad.",
+    "I say things to make me sound cool.",
+    "I wish I could wave a magic wand to make all my sadness go away.",
+    "I am afraid of my feelings.",
+    "I can't be a good friend when I feel upset."
+  ];
+
+  const tbody = document.getElementById("table-body");
+
+  // Build rows
+  items.forEach((txt, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class='item-text'>${idx + 1}. ${txt}</td>` +
+      [0,1,2,3,4].map(v => `<td><input type='radio' name='q${idx}' value='${v}'></td>`).join("");
+    tbody.appendChild(tr);
+  });
+
+  // ---------- Persistence Helpers ----------
+  const saveState = () => {
+    const name = document.getElementById('studentName').value;
+    const responses = items.map((_, i) => {
+      const sel = document.querySelector(`input[name=q${i}]:checked`);
+      return sel ? Number(sel.value) : null;
+    });
+    localStorage.setItem('afq_name', name);
+    localStorage.setItem('afq_responses', JSON.stringify(responses));
+  };
+
+  const loadState = () => {
+    const savedName = localStorage.getItem('afq_name') || '';
+    document.getElementById('studentName').value = savedName;
+    const saved = JSON.parse(localStorage.getItem('afq_responses') || '[]');
+    saved.forEach((val, i) => {
+      if (val !== null) {
+        const radio = document.querySelector(`input[name=q${i}][value='${val}']`);
+        if (radio) radio.checked = true;
+      }
+    });
+  };
+
+  // Attach change listeners to save state
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('input[type=radio]') || e.target.id === 'studentName') {
+      saveState();
+    }
+  });
+
+  window.addEventListener('load', loadState);
+
+  // ---------- Scoring & Narrative ----------
+  function computeScore() {
+    const chosen = items.map((_, i) => document.querySelector(`input[name=q${i}]:checked`));
+    if (chosen.some(r => !r)) {
+      alert('Please answer every question.');
+      return;
+    }
+    const total = chosen.reduce((s, r) => s + Number(r.value), 0);
+    const name = document.getElementById('studentName').value.trim() || 'The student';
+
+    // Simple interpretive bands
+    let level;
+    if (total <= 22) level = 'low';
+    else if (total <= 45) level = 'moderate';
+    else level = 'high';
+
+    const para = `${name} obtained an AFQ‑Y total score of ${total} out of 68, indicating ${level} psychological inflexibility. This suggests that internal experiences such as uncomfortable thoughts and feelings may be exerting a ${level === 'low' ? 'minimal' : level === 'moderate' ? 'moderate' : 'strong'} influence on behavior, and interventions that teach acceptance, defusion, and values‑based action are ${level === 'low' ? 'likely complementary' : 'strongly recommended'} as part of the behavior plan.`;
+
+    document.getElementById('result').innerHTML = `<p>Total AFQ‑Y score: <strong>${total} / 68</strong></p><p>${para}</p>`;
+    saveState();
+  }
+</script>
+</body>
+</html> 
